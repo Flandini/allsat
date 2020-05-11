@@ -1,0 +1,901 @@
+diff --git a/Makefile b/Makefile
+index ceb9d77..665bdc2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,214 +1,432 @@
+-###################################################################################################
+-
+-.PHONY:	r d p sh cr cd cp csh lr ld lp lsh config all install install-headers install-lib\
+-        install-bin clean distclean
+-all:	r lr lsh
+-
+-## Load Previous Configuration ####################################################################
+-
+--include config.mk
+-
+-## Configurable options ###########################################################################
+-
+-# Directory to store object files, libraries, executables, and dependencies:
+-BUILD_DIR      ?= build
+-
+-# Include debug-symbols in release builds
+-MINISAT_RELSYM ?= -g
+-
+-# Sets of compile flags for different build types
+-MINISAT_REL    ?= -O3 -D NDEBUG
+-MINISAT_DEB    ?= -O0 -D DEBUG 
+-MINISAT_PRF    ?= -O3 -D NDEBUG
+-MINISAT_FPIC   ?= -fpic
+-
+-# GNU Standard Install Prefix
+-prefix         ?= /usr/local
+-
+-## Write Configuration  ###########################################################################
+-
+-config:
+-	@( echo 'BUILD_DIR?=$(BUILD_DIR)'           ; \
+-	   echo 'MINISAT_RELSYM?=$(MINISAT_RELSYM)' ; \
+-	   echo 'MINISAT_REL?=$(MINISAT_REL)'       ; \
+-	   echo 'MINISAT_DEB?=$(MINISAT_DEB)'       ; \
+-	   echo 'MINISAT_PRF?=$(MINISAT_PRF)'       ; \
+-	   echo 'MINISAT_FPIC?=$(MINISAT_FPIC)'     ; \
+-	   echo 'prefix?=$(prefix)'                 ) > config.mk
+-
+-## Configurable options end #######################################################################
+-
+-INSTALL ?= install
+-
+-# GNU Standard Install Variables
+-exec_prefix ?= $(prefix)
+-includedir  ?= $(prefix)/include
+-bindir      ?= $(exec_prefix)/bin
+-libdir      ?= $(exec_prefix)/lib
+-datarootdir ?= $(prefix)/share
+-mandir      ?= $(datarootdir)/man
+-
+-# Target file names
+-MINISAT      = minisat#       Name of MiniSat main executable.
+-MINISAT_CORE = minisat_core#  Name of simplified MiniSat executable (only core solver support).
+-MINISAT_SLIB = lib$(MINISAT).a#  Name of MiniSat static library.
+-MINISAT_DLIB = lib$(MINISAT).so# Name of MiniSat shared library.
+-
+-# Shared Library Version
+-SOMAJOR=2
+-SOMINOR=1
+-SORELEASE?=.0#   Declare empty to leave out from library file name.
+-
+-MINISAT_CXXFLAGS = -I. -D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -Wall -Wno-parentheses -Wextra
+-MINISAT_LDFLAGS  = -Wall -lz
+-
+-ECHO=@echo
+-ifeq ($(VERB),)
+-VERB=@
+-else
+-VERB=
+-endif
+-
+-SRCS = $(wildcard minisat/core/*.cc) $(wildcard minisat/simp/*.cc) $(wildcard minisat/utils/*.cc)
+-HDRS = $(wildcard minisat/mtl/*.h) $(wildcard minisat/core/*.h) $(wildcard minisat/simp/*.h) $(wildcard minisat/utils/*.h)
+-OBJS = $(filter-out %Main.o, $(SRCS:.cc=.o))
+-
+-r:	$(BUILD_DIR)/release/bin/$(MINISAT)
+-d:	$(BUILD_DIR)/debug/bin/$(MINISAT)
+-p:	$(BUILD_DIR)/profile/bin/$(MINISAT)
+-sh:	$(BUILD_DIR)/dynamic/bin/$(MINISAT)
+-
+-cr:	$(BUILD_DIR)/release/bin/$(MINISAT_CORE)
+-cd:	$(BUILD_DIR)/debug/bin/$(MINISAT_CORE)
+-cp:	$(BUILD_DIR)/profile/bin/$(MINISAT_CORE)
+-csh:	$(BUILD_DIR)/dynamic/bin/$(MINISAT_CORE)
+-
+-lr:	$(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
+-ld:	$(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
+-lp:	$(BUILD_DIR)/profile/lib/$(MINISAT_SLIB)
+-lsh:	$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)
+-
+-## Build-type Compile-flags:
+-$(BUILD_DIR)/release/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_REL) $(MINISAT_RELSYM)
+-$(BUILD_DIR)/debug/%.o:				MINISAT_CXXFLAGS +=$(MINISAT_DEB) -g
+-$(BUILD_DIR)/profile/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_PRF) -pg
+-$(BUILD_DIR)/dynamic/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_REL) $(MINISAT_FPIC)
+-
+-## Build-type Link-flags:
+-$(BUILD_DIR)/profile/bin/$(MINISAT):		MINISAT_LDFLAGS += -pg
+-$(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+-$(BUILD_DIR)/profile/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += -pg
+-$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+-
+-## Executable dependencies
+-$(BUILD_DIR)/release/bin/$(MINISAT):	 	$(BUILD_DIR)/release/minisat/simp/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
+-$(BUILD_DIR)/debug/bin/$(MINISAT):	 	$(BUILD_DIR)/debug/minisat/simp/Main.o $(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
+-$(BUILD_DIR)/profile/bin/$(MINISAT):	 	$(BUILD_DIR)/profile/minisat/simp/Main.o $(BUILD_DIR)/profile/lib/$(MINISAT_SLIB)
+-# need the main-file be compiled with fpic?
+-$(BUILD_DIR)/dynamic/bin/$(MINISAT):	 	$(BUILD_DIR)/dynamic/minisat/simp/Main.o $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+-
+-## Executable dependencies (core-version)
+-$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	$(BUILD_DIR)/release/minisat/core/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
+-$(BUILD_DIR)/debug/bin/$(MINISAT_CORE):	 	$(BUILD_DIR)/debug/minisat/core/Main.o $(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
+-$(BUILD_DIR)/profile/bin/$(MINISAT_CORE):	$(BUILD_DIR)/profile/minisat/core/Main.o $(BUILD_DIR)/profile/lib/$(MINISAT_SLIB)
+-# need the main-file be compiled with fpic?
+-$(BUILD_DIR)/dynamic/bin/$(MINISAT_CORE): 	$(BUILD_DIR)/dynamic/minisat/core/Main.o $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+-
+-## Library dependencies
+-$(BUILD_DIR)/release/lib/$(MINISAT_SLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/release/$(o))
+-$(BUILD_DIR)/debug/lib/$(MINISAT_SLIB):		$(foreach o,$(OBJS),$(BUILD_DIR)/debug/$(o))
+-$(BUILD_DIR)/profile/lib/$(MINISAT_SLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/profile/$(o))
+-$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
+- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
+- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/dynamic/$(o))
+-
+-## Compile rules (these should be unified, buit I have not yet found a way which works in GNU Make)
+-$(BUILD_DIR)/release/%.o:	%.cc
+-	$(ECHO) Compiling: $@
+-	$(VERB) mkdir -p $(dir $@)
+-	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/release/$*.d
+-
+-$(BUILD_DIR)/profile/%.o:	%.cc
+-	$(ECHO) Compiling: $@
+-	$(VERB) mkdir -p $(dir $@)
+-	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/profile/$*.d
+-
+-$(BUILD_DIR)/debug/%.o:	%.cc
+-	$(ECHO) Compiling: $@
+-	$(VERB) mkdir -p $(dir $@)
+-	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/debug/$*.d
+-
+-$(BUILD_DIR)/dynamic/%.o:	%.cc
+-	$(ECHO) Compiling: $@
+-	$(VERB) mkdir -p $(dir $@)
+-	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dynamic/$*.d
+-
+-## Linking rule
+-$(BUILD_DIR)/release/bin/$(MINISAT) $(BUILD_DIR)/debug/bin/$(MINISAT) $(BUILD_DIR)/profile/bin/$(MINISAT) $(BUILD_DIR)/dynamic/bin/$(MINISAT)\
+-$(BUILD_DIR)/release/bin/$(MINISAT_CORE) $(BUILD_DIR)/debug/bin/$(MINISAT_CORE) $(BUILD_DIR)/profile/bin/$(MINISAT_CORE) $(BUILD_DIR)/dynamic/bin/$(MINISAT_CORE):
+-	$(ECHO) Linking Binary: $@
+-	$(VERB) mkdir -p $(dir $@)
+-	$(VERB) $(CXX) $^ $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@
+-
+-## Static Library rule
+-%/lib/$(MINISAT_SLIB):
+-	$(ECHO) Linking Static Library: $@
+-	$(VERB) mkdir -p $(dir $@)
+-	$(VERB) $(AR) -rcs $@ $^
+-
+-## Shared Library rule
+-$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
+- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
+- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):
+-	$(ECHO) Linking Shared Library: $@
+-	$(VERB) mkdir -p $(dir $@)
+-	$(VERB) $(CXX) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@ -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR) $^
+-	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)
+-	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+-
+-install:	install-headers install-lib install-bin
+-install-debug:	install-headers install-lib-debug
+-
+-install-headers:
+-#       Create directories
+-	$(INSTALL) -d $(DESTDIR)$(includedir)/minisat
+-	for dir in mtl utils core simp; do \
+-	  $(INSTALL) -d $(DESTDIR)$(includedir)/minisat/$$dir ; \
+-	done
+-#       Install headers
+-	for h in $(HDRS) ; do \
+-	  $(INSTALL) -m 644 $$h $(DESTDIR)$(includedir)/$$h ; \
+-	done
+-
+-install-lib-debug: $(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
+-	$(INSTALL) -d $(DESTDIR)$(libdir)
+-	$(INSTALL) -m 644 $(BUILD_DIR)/debug/lib/$(MINISAT_SLIB) $(DESTDIR)$(libdir)
+-
+-install-lib: $(BUILD_DIR)/release/lib/$(MINISAT_SLIB) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)
+-	$(INSTALL) -d $(DESTDIR)$(libdir)
+-	$(INSTALL) -m 644 $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE) $(DESTDIR)$(libdir)
+-	ln -sf $(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE) $(DESTDIR)$(libdir)/$(MINISAT_DLIB).$(SOMAJOR)
+-	ln -sf $(MINISAT_DLIB).$(SOMAJOR) $(DESTDIR)$(libdir)/$(MINISAT_DLIB)
+-	$(INSTALL) -m 644 $(BUILD_DIR)/release/lib/$(MINISAT_SLIB) $(DESTDIR)$(libdir)
+-
+-install-bin: $(BUILD_DIR)/dynamic/bin/$(MINISAT)
+-	$(INSTALL) -d $(DESTDIR)$(bindir)
+-	$(INSTALL) -m 755 $(BUILD_DIR)/dynamic/bin/$(MINISAT) $(DESTDIR)$(bindir)
++# CMAKE generated file: DO NOT EDIT!
++# Generated by "Unix Makefiles" Generator, CMake Version 3.16
+ 
++# Default target executed when no arguments are given to make.
++default_target: all
++
++.PHONY : default_target
++
++# Allow only one "make -f Makefile2" at a time, but pass parallelism.
++.NOTPARALLEL:
++
++
++#=============================================================================
++# Special targets provided by cmake.
++
++# Disable implicit rules so canonical targets will work.
++.SUFFIXES:
++
++
++# Remove some rules from gmake that .SUFFIXES does not remove.
++SUFFIXES =
++
++.SUFFIXES: .hpux_make_needs_suffix_list
++
++
++# Suppress display of executed commands.
++$(VERBOSE).SILENT:
++
++
++# A target that is always out of date.
++cmake_force:
++
++.PHONY : cmake_force
++
++#=============================================================================
++# Set environment variables for the build.
++
++# The shell in which to execute make rules.
++SHELL = /bin/sh
++
++# The CMake executable.
++CMAKE_COMMAND = /usr/local/Cellar/cmake/3.16.2/bin/cmake
++
++# The command to remove a file.
++RM = /usr/local/Cellar/cmake/3.16.2/bin/cmake -E remove -f
++
++# Escaping for special characters.
++EQUALS = =
++
++# The top-level source directory on which CMake was run.
++CMAKE_SOURCE_DIR = /Users/flanders/minisat
++
++# The top-level build directory on which CMake was run.
++CMAKE_BINARY_DIR = /Users/flanders/minisat
++
++#=============================================================================
++# Targets provided globally by CMake.
++
++# Special rule for the target install/local
++install/local: preinstall
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
++	/usr/local/Cellar/cmake/3.16.2/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
++.PHONY : install/local
++
++# Special rule for the target install/local
++install/local/fast: preinstall/fast
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
++	/usr/local/Cellar/cmake/3.16.2/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
++.PHONY : install/local/fast
++
++# Special rule for the target install/strip
++install/strip: preinstall
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
++	/usr/local/Cellar/cmake/3.16.2/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
++.PHONY : install/strip
++
++# Special rule for the target install/strip
++install/strip/fast: preinstall/fast
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
++	/usr/local/Cellar/cmake/3.16.2/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
++.PHONY : install/strip/fast
++
++# Special rule for the target install
++install: preinstall
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
++	/usr/local/Cellar/cmake/3.16.2/bin/cmake -P cmake_install.cmake
++.PHONY : install
++
++# Special rule for the target install
++install/fast: preinstall/fast
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
++	/usr/local/Cellar/cmake/3.16.2/bin/cmake -P cmake_install.cmake
++.PHONY : install/fast
++
++# Special rule for the target list_install_components
++list_install_components:
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"Unspecified\""
++.PHONY : list_install_components
++
++# Special rule for the target list_install_components
++list_install_components/fast: list_install_components
++
++.PHONY : list_install_components/fast
++
++# Special rule for the target rebuild_cache
++rebuild_cache:
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
++	/usr/local/Cellar/cmake/3.16.2/bin/cmake -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
++.PHONY : rebuild_cache
++
++# Special rule for the target rebuild_cache
++rebuild_cache/fast: rebuild_cache
++
++.PHONY : rebuild_cache/fast
++
++# Special rule for the target edit_cache
++edit_cache:
++	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
++	/usr/local/Cellar/cmake/3.16.2/bin/ccmake -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
++.PHONY : edit_cache
++
++# Special rule for the target edit_cache
++edit_cache/fast: edit_cache
++
++.PHONY : edit_cache/fast
++
++# The main all target
++all: cmake_check_build_system
++	$(CMAKE_COMMAND) -E cmake_progress_start /Users/flanders/minisat/CMakeFiles /Users/flanders/minisat/CMakeFiles/progress.marks
++	$(MAKE) -f CMakeFiles/Makefile2 all
++	$(CMAKE_COMMAND) -E cmake_progress_start /Users/flanders/minisat/CMakeFiles 0
++.PHONY : all
++
++# The main clean target
+ clean:
+-	rm -f $(foreach t, release debug profile dynamic, $(foreach o, $(SRCS:.cc=.o), $(BUILD_DIR)/$t/$o)) \
+-          $(foreach t, release debug profile dynamic, $(foreach d, $(SRCS:.cc=.d), $(BUILD_DIR)/$t/$d)) \
+-	  $(foreach t, release debug profile dynamic, $(BUILD_DIR)/$t/bin/$(MINISAT_CORE) $(BUILD_DIR)/$t/bin/$(MINISAT)) \
+-	  $(foreach t, release debug profile, $(BUILD_DIR)/$t/lib/$(MINISAT_SLIB)) \
+-	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
+-	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
+-	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+-
+-distclean:	clean
+-	rm -f config.mk
+-
+-## Include generated dependencies
+--include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/release/$s)
+--include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/debug/$s)
+--include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/profile/$s)
+--include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/dynamic/$s)
++	$(MAKE) -f CMakeFiles/Makefile2 clean
++.PHONY : clean
++
++# The main clean target
++clean/fast: clean
++
++.PHONY : clean/fast
++
++# Prepare targets for installation.
++preinstall: all
++	$(MAKE) -f CMakeFiles/Makefile2 preinstall
++.PHONY : preinstall
++
++# Prepare targets for installation.
++preinstall/fast:
++	$(MAKE) -f CMakeFiles/Makefile2 preinstall
++.PHONY : preinstall/fast
++
++# clear depends
++depend:
++	$(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
++.PHONY : depend
++
++#=============================================================================
++# Target rules for targets named minisat_simp
++
++# Build rule for target.
++minisat_simp: cmake_check_build_system
++	$(MAKE) -f CMakeFiles/Makefile2 minisat_simp
++.PHONY : minisat_simp
++
++# fast build rule for target.
++minisat_simp/fast:
++	$(MAKE) -f CMakeFiles/minisat_simp.dir/build.make CMakeFiles/minisat_simp.dir/build
++.PHONY : minisat_simp/fast
++
++#=============================================================================
++# Target rules for targets named minisat_core
++
++# Build rule for target.
++minisat_core: cmake_check_build_system
++	$(MAKE) -f CMakeFiles/Makefile2 minisat_core
++.PHONY : minisat_core
++
++# fast build rule for target.
++minisat_core/fast:
++	$(MAKE) -f CMakeFiles/minisat_core.dir/build.make CMakeFiles/minisat_core.dir/build
++.PHONY : minisat_core/fast
++
++#=============================================================================
++# Target rules for targets named minisat-lib-shared
++
++# Build rule for target.
++minisat-lib-shared: cmake_check_build_system
++	$(MAKE) -f CMakeFiles/Makefile2 minisat-lib-shared
++.PHONY : minisat-lib-shared
++
++# fast build rule for target.
++minisat-lib-shared/fast:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/build
++.PHONY : minisat-lib-shared/fast
++
++#=============================================================================
++# Target rules for targets named minisat-lib-static
++
++# Build rule for target.
++minisat-lib-static: cmake_check_build_system
++	$(MAKE) -f CMakeFiles/Makefile2 minisat-lib-static
++.PHONY : minisat-lib-static
++
++# fast build rule for target.
++minisat-lib-static/fast:
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/build
++.PHONY : minisat-lib-static/fast
++
++minisat/core/Main.o: minisat/core/Main.cc.o
++
++.PHONY : minisat/core/Main.o
++
++# target to build an object file
++minisat/core/Main.cc.o:
++	$(MAKE) -f CMakeFiles/minisat_core.dir/build.make CMakeFiles/minisat_core.dir/minisat/core/Main.cc.o
++.PHONY : minisat/core/Main.cc.o
++
++minisat/core/Main.i: minisat/core/Main.cc.i
++
++.PHONY : minisat/core/Main.i
++
++# target to preprocess a source file
++minisat/core/Main.cc.i:
++	$(MAKE) -f CMakeFiles/minisat_core.dir/build.make CMakeFiles/minisat_core.dir/minisat/core/Main.cc.i
++.PHONY : minisat/core/Main.cc.i
++
++minisat/core/Main.s: minisat/core/Main.cc.s
++
++.PHONY : minisat/core/Main.s
++
++# target to generate assembly for a file
++minisat/core/Main.cc.s:
++	$(MAKE) -f CMakeFiles/minisat_core.dir/build.make CMakeFiles/minisat_core.dir/minisat/core/Main.cc.s
++.PHONY : minisat/core/Main.cc.s
++
++minisat/core/Solver.o: minisat/core/Solver.cc.o
++
++.PHONY : minisat/core/Solver.o
++
++# target to build an object file
++minisat/core/Solver.cc.o:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/core/Solver.cc.o
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/core/Solver.cc.o
++.PHONY : minisat/core/Solver.cc.o
++
++minisat/core/Solver.i: minisat/core/Solver.cc.i
++
++.PHONY : minisat/core/Solver.i
++
++# target to preprocess a source file
++minisat/core/Solver.cc.i:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/core/Solver.cc.i
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/core/Solver.cc.i
++.PHONY : minisat/core/Solver.cc.i
++
++minisat/core/Solver.s: minisat/core/Solver.cc.s
++
++.PHONY : minisat/core/Solver.s
++
++# target to generate assembly for a file
++minisat/core/Solver.cc.s:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/core/Solver.cc.s
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/core/Solver.cc.s
++.PHONY : minisat/core/Solver.cc.s
++
++minisat/simp/Main.o: minisat/simp/Main.cc.o
++
++.PHONY : minisat/simp/Main.o
++
++# target to build an object file
++minisat/simp/Main.cc.o:
++	$(MAKE) -f CMakeFiles/minisat_simp.dir/build.make CMakeFiles/minisat_simp.dir/minisat/simp/Main.cc.o
++.PHONY : minisat/simp/Main.cc.o
++
++minisat/simp/Main.i: minisat/simp/Main.cc.i
++
++.PHONY : minisat/simp/Main.i
++
++# target to preprocess a source file
++minisat/simp/Main.cc.i:
++	$(MAKE) -f CMakeFiles/minisat_simp.dir/build.make CMakeFiles/minisat_simp.dir/minisat/simp/Main.cc.i
++.PHONY : minisat/simp/Main.cc.i
++
++minisat/simp/Main.s: minisat/simp/Main.cc.s
++
++.PHONY : minisat/simp/Main.s
++
++# target to generate assembly for a file
++minisat/simp/Main.cc.s:
++	$(MAKE) -f CMakeFiles/minisat_simp.dir/build.make CMakeFiles/minisat_simp.dir/minisat/simp/Main.cc.s
++.PHONY : minisat/simp/Main.cc.s
++
++minisat/simp/SimpSolver.o: minisat/simp/SimpSolver.cc.o
++
++.PHONY : minisat/simp/SimpSolver.o
++
++# target to build an object file
++minisat/simp/SimpSolver.cc.o:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/simp/SimpSolver.cc.o
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/simp/SimpSolver.cc.o
++.PHONY : minisat/simp/SimpSolver.cc.o
++
++minisat/simp/SimpSolver.i: minisat/simp/SimpSolver.cc.i
++
++.PHONY : minisat/simp/SimpSolver.i
++
++# target to preprocess a source file
++minisat/simp/SimpSolver.cc.i:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/simp/SimpSolver.cc.i
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/simp/SimpSolver.cc.i
++.PHONY : minisat/simp/SimpSolver.cc.i
++
++minisat/simp/SimpSolver.s: minisat/simp/SimpSolver.cc.s
++
++.PHONY : minisat/simp/SimpSolver.s
++
++# target to generate assembly for a file
++minisat/simp/SimpSolver.cc.s:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/simp/SimpSolver.cc.s
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/simp/SimpSolver.cc.s
++.PHONY : minisat/simp/SimpSolver.cc.s
++
++minisat/utils/Options.o: minisat/utils/Options.cc.o
++
++.PHONY : minisat/utils/Options.o
++
++# target to build an object file
++minisat/utils/Options.cc.o:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/utils/Options.cc.o
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/utils/Options.cc.o
++.PHONY : minisat/utils/Options.cc.o
++
++minisat/utils/Options.i: minisat/utils/Options.cc.i
++
++.PHONY : minisat/utils/Options.i
++
++# target to preprocess a source file
++minisat/utils/Options.cc.i:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/utils/Options.cc.i
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/utils/Options.cc.i
++.PHONY : minisat/utils/Options.cc.i
++
++minisat/utils/Options.s: minisat/utils/Options.cc.s
++
++.PHONY : minisat/utils/Options.s
++
++# target to generate assembly for a file
++minisat/utils/Options.cc.s:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/utils/Options.cc.s
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/utils/Options.cc.s
++.PHONY : minisat/utils/Options.cc.s
++
++minisat/utils/System.o: minisat/utils/System.cc.o
++
++.PHONY : minisat/utils/System.o
++
++# target to build an object file
++minisat/utils/System.cc.o:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/utils/System.cc.o
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/utils/System.cc.o
++.PHONY : minisat/utils/System.cc.o
++
++minisat/utils/System.i: minisat/utils/System.cc.i
++
++.PHONY : minisat/utils/System.i
++
++# target to preprocess a source file
++minisat/utils/System.cc.i:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/utils/System.cc.i
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/utils/System.cc.i
++.PHONY : minisat/utils/System.cc.i
++
++minisat/utils/System.s: minisat/utils/System.cc.s
++
++.PHONY : minisat/utils/System.s
++
++# target to generate assembly for a file
++minisat/utils/System.cc.s:
++	$(MAKE) -f CMakeFiles/minisat-lib-shared.dir/build.make CMakeFiles/minisat-lib-shared.dir/minisat/utils/System.cc.s
++	$(MAKE) -f CMakeFiles/minisat-lib-static.dir/build.make CMakeFiles/minisat-lib-static.dir/minisat/utils/System.cc.s
++.PHONY : minisat/utils/System.cc.s
++
++# Help Target
++help:
++	@echo "The following are some of the valid targets for this Makefile:"
++	@echo "... all (the default if no target is provided)"
++	@echo "... clean"
++	@echo "... depend"
++	@echo "... install/local"
++	@echo "... install/strip"
++	@echo "... install"
++	@echo "... list_install_components"
++	@echo "... rebuild_cache"
++	@echo "... edit_cache"
++	@echo "... minisat_simp"
++	@echo "... minisat_core"
++	@echo "... minisat-lib-shared"
++	@echo "... minisat-lib-static"
++	@echo "... minisat/core/Main.o"
++	@echo "... minisat/core/Main.i"
++	@echo "... minisat/core/Main.s"
++	@echo "... minisat/core/Solver.o"
++	@echo "... minisat/core/Solver.i"
++	@echo "... minisat/core/Solver.s"
++	@echo "... minisat/simp/Main.o"
++	@echo "... minisat/simp/Main.i"
++	@echo "... minisat/simp/Main.s"
++	@echo "... minisat/simp/SimpSolver.o"
++	@echo "... minisat/simp/SimpSolver.i"
++	@echo "... minisat/simp/SimpSolver.s"
++	@echo "... minisat/utils/Options.o"
++	@echo "... minisat/utils/Options.i"
++	@echo "... minisat/utils/Options.s"
++	@echo "... minisat/utils/System.o"
++	@echo "... minisat/utils/System.i"
++	@echo "... minisat/utils/System.s"
++.PHONY : help
++
++
++
++#=============================================================================
++# Special targets to cleanup operation of make.
++
++# Special rule to run CMake to check the build system integrity.
++# No rule that depends on this can have commands that come from listfiles
++# because they might be regenerated.
++cmake_check_build_system:
++	$(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
++.PHONY : cmake_check_build_system
++
+diff --git a/minisat/core/Dimacs.h b/minisat/core/Dimacs.h
+index d5db413..bdf7bcb 100644
+--- a/minisat/core/Dimacs.h
++++ b/minisat/core/Dimacs.h
+@@ -35,11 +35,23 @@ template<class B, class Solver>
+ static void readClause(B& in, Solver& S, vec<Lit>& lits) {
+     int     parsed_lit, var;
+     lits.clear();
+-    for (;;){
++
++    for (;;)
++    {
+         parsed_lit = parseInt(in);
+-        if (parsed_lit == 0) break;
++
++        if (parsed_lit == 0)
++        {
++            break;
++        }
++
+         var = abs(parsed_lit)-1;
+-        while (var >= S.nVars()) S.newVar();
++
++        while (var >= S.nVars())
++        {
++            S.newVar();
++        }
++
+         lits.push( (parsed_lit > 0) ? mkLit(var) : ~mkLit(var) );
+     }
+ }
+@@ -53,22 +65,36 @@ static void parse_DIMACS_main(B& in, Solver& S, bool strictp = false) {
+     for (;;){
+         skipWhitespace(in);
+         if (*in == EOF) break;
+-        else if (*in == 'p'){
+-            if (eagerMatch(in, "p cnf")){
++        else if (*in == 'p')
++        {
++            if (eagerMatch(in, "p cnf"))
++            {
+                 vars    = parseInt(in);
+                 clauses = parseInt(in);
+-                // SATRACE'06 hack
+-                // if (clauses > 4000000)
+-                //     S.eliminate(true);
+-            }else{
+-                printf("PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
+             }
+-        } else if (*in == 'c' || *in == 'p')
+-            skipLine(in);
+-        else{
++            else
++            {
++                printf("PARSE ERROR! Unexpected char: %c\n", *in);
++                exit(3);
++            }
++        }
++        else if (*in == 'c')
++        {
++            if (eagerMatch(in, "c maxindep"))
++            {
++                S.maxindep = parseInt(in);
++            }
++            else
++            {
++                skipLine(in);
++            }
++        }
++        else
++        {
+             cnt++;
+             readClause(in, S, lits);
+-            S.addClause_(lits); }
++            S.addClause_(lits);
++        }
+     }
+     if (strictp && cnt != clauses)
+         printf("PARSE ERROR! DIMACS header mismatch: wrong number of clauses\n");
+diff --git a/minisat/core/Dimacs.h.gch b/minisat/core/Dimacs.h.gch
+new file mode 100644
+index 0000000..5c9818e
+Binary files /dev/null and b/minisat/core/Dimacs.h.gch differ
+diff --git a/minisat/core/Main.cc b/minisat/core/Main.cc
+index 69302ae..c697c4d 100644
+--- a/minisat/core/Main.cc
++++ b/minisat/core/Main.cc
+@@ -51,6 +51,37 @@ static void SIGINT_exit(int) {
+ //=================================================================================================
+ // Main:
+ 
++void negate_last_solution(Solver& S, vec<Lit>& new_clause)
++{
++    new_clause.clear();
++
++    for (int i = 1; i < S.maxindep; i++) // For some reason, skip the 0th?. S.nVars()
++    {
++        new_clause.push(S.model[i] == l_True ? ~mkLit(i) : mkLit(i)); // Negate
++    }
++
++    S.addClause_(new_clause);
++}
++
++// - Michael
++void enumerate_solutions(Solver& S)
++{
++    vec<Lit> new_clause;
++
++    bool result = S.solve();
++
++    while (result)
++    {
++        ++S.num_solutions;
++        negate_last_solution(S, new_clause);
++        result = S.solve();
++    }
++
++    S.printStats();
++    printf("\n");
++
++    printf("Hit UNSAT formula\n");
++}
+ 
+ int main(int argc, char** argv)
+ {
+@@ -119,32 +150,37 @@ int main(int argc, char** argv)
+             printf("UNSATISFIABLE\n");
+             exit(20);
+         }
+-        
++
++        enumerate_solutions(S);
++/*
+         vec<Lit> dummy;
+-        lbool ret = S.solveLimited(dummy);
+-        if (S.verbosity > 0){
+-            S.printStats();
+-            printf("\n"); }
+-        printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
+-        if (res != NULL){
+-            if (ret == l_True){
+-                fprintf(res, "SAT\n");
+-                for (int i = 0; i < S.nVars(); i++)
+-                    if (S.model[i] != l_Undef)
+-                        fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
+-                fprintf(res, " 0\n");
+-            }else if (ret == l_False)
+-                fprintf(res, "UNSAT\n");
+-            else
+-                fprintf(res, "INDET\n");
+-            fclose(res);
+-        }
+-        
++
++       lbool ret = S.solveLimited(dummy);
++       if (S.verbosity > 0){
++           S.printStats();
++           printf("\n"); }
++       printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
++       if (res != NULL){
++           if (ret == l_True){
++               fprintf(res, "SAT\n");
++               for (int i = 0; i < S.nVars(); i++)
++                   if (S.model[i] != l_Undef)
++                       fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
++               fprintf(res, " 0\n");
++           }else if (ret == l_False)
++               fprintf(res, "UNSAT\n");
++           else
++               fprintf(res, "INDET\n");
++           fclose(res);
++       }
++
+ #ifdef NDEBUG
+-        exit(ret == l_True ? 10 : ret == l_False ? 20 : 0);     // (faster than "return", which will invoke the destructor for 'Solver')
++       exit(ret == l_True ? 10 : ret == l_False ? 20 : 0);     // (faster than "return", which will invoke the destructor for 'Solver')
+ #else
+-        return (ret == l_True ? 10 : ret == l_False ? 20 : 0);
++       return (ret == l_True ? 10 : ret == l_False ? 20 : 0);
+ #endif
++ */
++    return 0;
+     } catch (OutOfMemoryException&){
+         printf("===============================================================================\n");
+         printf("INDETERMINATE\n");
+diff --git a/minisat/core/Solver.cc b/minisat/core/Solver.cc
+index 6175cb4..ae75895 100644
+--- a/minisat/core/Solver.cc
++++ b/minisat/core/Solver.cc
+@@ -69,6 +69,8 @@ Solver::Solver() :
+   , min_learnts_lim  (opt_min_learnts_lim)
+   , restart_first    (opt_restart_first)
+   , restart_inc      (opt_restart_inc)
++  , maxindep         (0)
++  , num_solutions    (0)
+ 
+     // Parameters (the rest):
+     //
+@@ -852,12 +854,14 @@ lbool Solver::solve_()
+     learntsize_adjust_cnt     = (int)learntsize_adjust_confl;
+     lbool   status            = l_Undef;
+ 
++    /*
+     if (verbosity >= 1){
+         printf("============================[ Search Statistics ]==============================\n");
+         printf("| Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
+         printf("|           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
+-        printf("===============================================================================\n");
++
+     }
++     */
+ 
+     // Search:
+     int curr_restarts = 0;
+@@ -868,9 +872,10 @@ lbool Solver::solve_()
+         curr_restarts++;
+     }
+ 
++    /*
+     if (verbosity >= 1)
+         printf("===============================================================================\n");
+-
++    */
+ 
+     if (status == l_True){
+         // Extend & copy model:
+@@ -997,6 +1002,8 @@ void Solver::printStats() const
+     printf("decisions             : %-12" PRIu64 "   (%4.2f %% random) (%.0f /sec)\n", decisions, (float)rnd_decisions*100 / (float)decisions, decisions   /cpu_time);
+     printf("propagations          : %-12" PRIu64 "   (%.0f /sec)\n", propagations, propagations/cpu_time);
+     printf("conflict literals     : %-12" PRIu64 "   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
++    printf("satisfying assignments: %-12" PRIu64 "\n" , num_solutions);
++    printf("max indep             : %-12" PRIu64 "\n", maxindep);
+     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
+     printf("CPU time              : %g s\n", cpu_time);
+ }
+diff --git a/minisat/core/Solver.h b/minisat/core/Solver.h
+index 09367f9..aa58c10 100644
+--- a/minisat/core/Solver.h
++++ b/minisat/core/Solver.h
+@@ -36,6 +36,8 @@ namespace Minisat {
+ 
+ class Solver {
+ public:
++    unsigned long long maxindep;
++    unsigned long long num_solutions;
+ 
+     // Constructor/Destructor:
+     //
+diff --git a/minisat/core/SolverTypes.h.gch b/minisat/core/SolverTypes.h.gch
+new file mode 100644
+index 0000000..bffb87f
+Binary files /dev/null and b/minisat/core/SolverTypes.h.gch differ
